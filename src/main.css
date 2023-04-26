@@ -1,0 +1,30 @@
+.hbox {
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: flex-start;
+}
+
+.hbox.hbox-gap-5 {
+    gap: 5%;
+}
+
+.w-30 {
+    width: 30%;
+}
+
+section {
+    font-size: 28px;
+    text-align: start;
+}
+
+section h4, section h3 {
+    text-align: center;
+}
+
+.strong-text {
+    color:rgb(242, 81, 204);
+}
+
+.small-text {
+    font-size: 22px;
+}

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presentation</title>
+</head>
+
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <h3>RxJS Subject</h3>
+            </section>
+            <section>
+                <div class="text-left">
+                    <h4>Subject</h4>
+                    <p>
+                        <span class="strong-text">Subject</span> - это специальный тип Observable,
+                        который позволяет передавать значения множеству Observer,
+                        позволяет реализовать горячую подписку на события.
+                    </p>
+                    <ul>
+                        <li>Каждый Subject является Observable (наблюдаемым).</li>
+                        <li>Каждый Subject является Observer (наблюдателем).</li>
+                    </ul>
+                </div>
+            </section>
+            <section>
+                <pre><code data-trim data-noescape>
+                    import { Subject } from 'rxjs';
+ 
+                    const subject = new Subject<number>();
+                     
+                    subject.subscribe({
+                      next: (v) => console.log(`observerA: ${v}`),
+                    });
+                    subject.subscribe({
+                      next: (v) => console.log(`observerB: ${v}`),
+                    });
+                     
+                    subject.next(1);
+                    subject.next(2);
+                     
+                    // Logs:
+                    // observerA: 1
+                    // observerB: 1
+                    // observerA: 2
+                    // observerB: 2
+                </code></pre>
+            </section>
+            <section>
+              <p class="small-text">
+                Можно указать Subject в качестве аргумента для subscribe любого Observable.
+                Так через Subject одноадресное выполнение Observable преобразовывается в многоадресное.
+              </p>
+              <pre><code data-trim data-noescape>
+                  import { Subject, from } from 'rxjs';
+
+                  const subject = new Subject<number>();
+
+                  subject.subscribe({
+                    next: (v) => console.log(`observerA: ${v}`),
+                  });
+                  subject.subscribe({
+                    next: (v) => console.log(`observerB: ${v}`),
+                  });
+
+                  const observable = from([1, 2, 3]);
+                  
+                  observable.subscribe(subject);
+                  
+                  // Logs:
+                  // observerA: 1
+                  // observerB: 1
+                  // observerA: 2
+                  // observerB: 2
+                  // observerA: 3
+                  // observerB: 3
+              </code></pre>
+            </section>
+            <section>
+                <h4>Multicasted Observables</h4>
+                <p class="small-text">
+                    <span class="strong-text">«Multicasted Observables»</span> передает уведомления через Subject,
+                    у которого может быть много подписчиков, тогда как простой
+                    «unicast Observable» отправляет уведомления только одному
+                    Observer.
+                </p>
+                <pre><code data-trim data-noescape>
+                    import { from, Subject, multicast } from 'rxjs';
+
+                    const source = from([1, 2, 3]);
+                    const subject = new Subject();
+                    const multicasted = source.pipe(multicast(subject));
+
+                    multicasted.subscribe({
+                      next: (v) => console.log(`observerA: ${v}`),
+                    });
+                    multicasted.subscribe({
+                      next: (v) => console.log(`observerB: ${v}`),
+                    });
+
+                    multicasted.connect();
+                </code></pre>
+                <p class="small-text"><span class="strong-text">multicast</span> возвращает Observable,
+                    который выглядит как обычный Observable, но работает как Subject, когда дело
+                    доходит до подписки.
+                </p>
+                <p class="small-text">
+                    <span class="strong-text">multicast</span> возвращает <span class="strong-text">ConnectableObservable</span> - Observable с методом connect().
+                </p>
+                <p class="small-text">
+                  <span class="strong-text">connect()</span> содержит под капотом <span class="strong-text">source.subscribe(subject)</span>.
+                </p>
+            </section>
+            <section>
+                <h4>Reference counting</h4>
+                <p class="small-text">
+                    <span class="strong-text">refCount()</span> - метод ConnectableObservable.
+                    Он заставляет многоадресный Observable автоматически начинать выполнение,
+                    когда приходит первый подписчик, и прекращать выполнение, когда уходит
+                    последний подписчик. Метод существует только в ConnectableObservable и
+                    возвращает Observable.
+                </p>
+                <pre><code data-trim data-noescape>
+                    import { interval, Subject, multicast, refCount } from 'rxjs';
+ 
+                    const source = interval(500);
+                    const subject = new Subject();
+                    const refCounted = source.pipe(multicast(subject), refCount());
+                    let subscription1, subscription2;
+                    
+                    console.log('observerA subscribed');
+                    subscription1 = refCounted.subscribe({
+                      next: (v) => console.log(`observerA: ${v}`),
+                    });
+                    
+                    setTimeout(() => {
+                      console.log('observerB subscribed');
+                      subscription2 = refCounted.subscribe({
+                        next: (v) => console.log(`observerB: ${v}`),
+                      });
+                    }, 600);
+                    
+                    setTimeout(() => {
+                      console.log('observerA unsubscribed');
+                      subscription1.unsubscribe();
+                    }, 1200);
+                    
+                    setTimeout(() => {
+                      console.log('observerB unsubscribed');
+                      subscription2.unsubscribe();
+                    }, 2000);
+                    
+                    // Logs
+                    // observerA subscribed
+                    // observerA: 0
+                    // observerB subscribed
+                    // observerA: 1
+                    // observerB: 1
+                    // observerA unsubscribed
+                    // observerB: 2
+                    // observerB unsubscribed
+                </code></pre>
+            </section>
+            <section>
+                <h4>Behavior Subjects</h4>
+                <p class="small-text">
+                    <span class="strong-text">BehaviorSubjects</span> -
+                    хранит последнее значение, отправленное своим потребителям.
+                    Всякий раз, когда новый наблюдатель подписывается, он немедленно
+                    получает «текущее значение» из файла BehaviorSubject.
+                </p>
+                <pre><code data-trim data-noescape>
+                    import { BehaviorSubject } from 'rxjs';
+                    const subject = new BehaviorSubject(0);
+
+                    subject.subscribe({
+                      next: (v) => console.log(`observerA: ${v}`),
+                    });
+
+                    subject.next(1);
+                    subject.next(2);
+
+                    subject.subscribe({
+                      next: (v) => console.log(`observerB: ${v}`),
+                    });
+
+                    subject.next(3);
+
+                    // Logs
+                    // observerA: 0
+                    // observerA: 1
+                    // observerA: 2
+                    // observerB: 2
+                    // observerA: 3
+                    // observerB: 3
+                </code></pre>
+            </section>
+            <section>
+                <h4>Replay Subject</h4>
+                <p class="small-text">
+                    <span class="strong-text">ReplaySubject</span> -
+                    записывает несколько значений из выполнения Observable
+                    и воспроизводит их новым подписчикам.
+                </p>
+                <pre><code data-trim data-noescape>
+                    import { ReplaySubject } from 'rxjs';
+                    const subject = new ReplaySubject(3);
+                    
+                    subject.subscribe({
+                      next: (v) => console.log(`observerA: ${v}`),
+                    });
+                    
+                    subject.next(1);
+                    subject.next(2);
+                    subject.next(3);
+                    subject.next(4);
+                    
+                    subject.subscribe({
+                      next: (v) => console.log(`observerB: ${v}`),
+                    });
+                    
+                    subject.next(5);
+                    
+                    // Logs:
+                    // observerA: 1
+                    // observerA: 2
+                    // observerA: 3
+                    // observerA: 4
+                    // observerB: 2
+                    // observerB: 3
+                    // observerB: 4
+                    // observerA: 5
+                    // observerB: 5
+                </code></pre>
+            </section>
+            <section>
+                <h4>Async Subject</h4>
+                <p class="small-text">
+                    <span class="strong-text">AsyncSubject</span> -
+                    это вариант, в котором наблюдателям отправляется только
+                    последнее значение выполнения Observable и только после завершения
+                    выполнения.
+                </p>
+                <pre><code data-trim data-noescape>
+                    import { AsyncSubject } from 'rxjs';
+                    const subject = new AsyncSubject();
+                    
+                    subject.subscribe({
+                      next: (v) => console.log(`observerA: ${v}`),
+                    });
+                    
+                    subject.next(1);
+                    subject.next(2);
+                    subject.next(3);
+                    subject.next(4);
+                    
+                    subject.subscribe({
+                      next: (v) => console.log(`observerB: ${v}`),
+                    });
+                    
+                    subject.next(5);
+                    subject.complete();
+                    
+                    // Logs:
+                    // observerA: 5
+                    // observerB: 5
+                </code></pre>
+            </section>
+            <section>
+                <h4>Void subject</h4>
+                <p class="small-text">
+                    <span class="strong-text">Void subject</span> -
+                    позволяет сигнализировать о событии без передачи значения.
+                </p>
+                <pre><code data-trim data-noescape>
+                    import { Subject } from 'rxjs';
+
+                    const subject = new Subject();
+
+                    subject.subscribe({
+                      next: () => console.log('One second has passed'),
+                    });
+
+                    setTimeout(() => subject.next(), 1000);
+                </code></pre>
+            </section>
+        </div>
+    </div>
+</body>
+
+</html>
